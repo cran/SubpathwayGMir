@@ -1,0 +1,300 @@
+%
+% NOTE -- ONLY EDIT SubpathwayGMir.Rnw!!!
+% SubpathwayGMir.tex file will get overwritten.
+%
+%\VignetteIndexEntry{SubpathwayGMir Overview}
+%\VignetteKeywords{pathway}
+%\VignettePackage{SubpathwayGMir}
+%\VignetteDepends{igraph,XML}
+
+\documentclass[10pt]{article}
+
+\usepackage{hyperref}
+\usepackage[pdftex]{graphicx}
+\SweaveOpts{keep.source=TRUE,eps=FALSE,pdf=TRUE,prefix=FALSE} 
+\author{Li Feng, Chunquan Li and Xia Li}
+
+\textwidth=6.2in
+\textheight=8.5in
+%\parskip=.3cm
+\oddsidemargin=.1in
+\evensidemargin=.1in
+\headheight=-.3in
+
+\newcommand{\xiaowuhao}{\fontsize{9pt}{\baselineskip}\selectfont}
+\newcommand{\liuhao}{\fontsize{7.875pt}{\baselineskip}\selectfont}
+\newcommand{\qihao}{\fontsize{5.25pt}{\baselineskip}\selectfont}
+
+\newcommand\Rpackage[1]{{\textsf{#1}\index{#1 (package)}}}
+\newcommand\RpackageNoindex[1]{{\textsf{#1}}}
+\newcommand\Rclass[1]{{\textit{#1}\index{#1 (class)}}}
+\newcommand\Rfunction[1]{{{\small\texttt{#1}}\index{#1 (function)}}}
+\newcommand\Rmethod[1]{{\small\texttt{#1}}}
+\newcommand\Rcommand[1]{{{\small\texttt{#1}}\index{#1 (function)}}}
+\newcommand\Rfunarg[1]{{\small\texttt{#1}}}
+\newcommand\Robject[1]{{\small\texttt{#1}}}
+\bibliographystyle{plainnat}
+
+\begin{document}
+\setkeys{Gin}{width=1.0\textwidth}
+\title{How To Use SubpathwayGMir}
+\maketitle
+\tableofcontents
+
+\section{Overview}
+This vignette demonstrates how to easily use the \Rpackage{SubpathwayGMir} package. This package can implement the identification of Kyoto Encyclopedia of Genes and Genomes (KEGG) metabolic subpathways mediated by microRNAs (miRNAs), by topologically locating miRNAs and genes within reconstructed KEGG metabolic pathway graphs, which emmbedded by miRNAs through integrating miRNA-target interactions verified by low-throughput experiments. (1) This package provides the \Rfunction{GetK2riData} to return verified miRNA-target interactions, which collected from four databases, such as TarBase(v5.0), miRecords(v4.0), miR2Disease and miRTarBase. (see the section \ref{DataSection}). (2) This package provides the \Rfunction{getInteGraphList} function to reconstruct KEGG metabolic pathways by embedding miRNAs into direct and/or undirect KEGG metabolic pathway graphs, these embedded miRNAs have verified targets within pathways.(see the section \ref{IntegrateSection}). (3) This package provides the \Rfunction{getLocSubGraph} function to locate miRNA-mediated metabolic subpathways by topologically analyzing the "lenient distance" of miRNAs and genes, based on reconstructed pathways.(see the section \ref{LocateSection}). (4) This package provides the \Rfunction{identifyGraph} function to identify the significantly enriched metabolic subpathways, based on located subpathways.(see the section \ref{IdentifySection}). (5) This package provides the \Rfunction{GetK2riData} function to get variable data in current environment.(see the section \ref{GetEnvirSection}). (6) This package provides the \Rfunction{updateOrgEnvir} function to updata the organism-specific environment variables.(see the section \ref{UpdateEnvirSection}).
+
+<<echo=FALSE>>=
+library(SubpathwayGMir)
+@ 
+
+\section{The experimentally verified miRNA-target interactions}\label{DataSection}
+
+We can use function \Rfunction{GetK2riData} to return verified miRNA-gene interactions, which are collected from four databases, namely TarBase(v5.0), miRecords(v4.0), miR2Disease and miRTarBase. We process these datasets into a uniform format. The final dataset contains seven columns, such as "SourceDB", "Species", "miRNA", "target", "LowHTExps", "Experiments" and "PMID". The value of column "SourceDB" is one of "TarBase(v5.0)", "miRecords(v4.0)", "miR2Disease" and "miRTarBase", which represents where this relation pair was derived from. Besides, this dataset can supports six organisms, such as cel(caenorhabditis elegans), dre(Danio rerio), dme(Drosophila melanogaster), hsa(Homo sapiens), mmu(Mus musculus) and rno(Rattus norvegicus). The column "Experiments" describes what kind of experiments valided this relations and the column "LowTHExps" represents whether this relation have been valided by low-throughput experiments or not. The column "PMID" provides PubMed identifers for the references of relations.
+
+<<>>= 
+# get verified miRNA-target interactions
+expMir2Tar <- GetK2riData("expMir2Tar")
+
+# view first six rows of data
+expMir2Tar[1:6,]
+@
+
+\section{Reconstruct KEGG metabolic pathways}\label{IntegrateSection}
+
+We can use function \Rfunction{getInteGraphList} to return the integrated KEGG metabolic pathway graph list. We first convert KEGG metabolic pathways to direct/undirect graphs with genes as nodes, then reconstructed pathways by linking miRNAs to targets within it.
+
+\subsection{Embed miRNAs to direct KEGG metabolic pathway graphs}\label{DirectInteGeneSection}
+
+The function \Rfunction{getInteGraphList} can integrate miRNAs to direct KEGG metabolic pathway graphs. With integrated graph list, we can offer the additional interested miRNAs and/or genes sets to identify the condition-specific metabolic pathways mediated by miRNAs.
+
+<<>>= 
+# get hsa-specificd miRNA-target interactions
+expMir2Tar <- GetK2riData("expMir2Tar")
+row1 <- which(expMir2Tar[["LowTHExps"]]=="YES")
+row2 <- which(expMir2Tar[["Species"]]=="hsa")
+relations <- unique(expMir2Tar[intersect(row1,row2),c(2:3)])
+
+# get direct metabolic pathway graphs
+ DirectGraphList <- GetK2riData("MetabolicGEGEEMGraph")
+
+# get reconstructed direct pathway graph list
+ DirectInteGraphList <- getInteGraphList(DirectGraphList, relations)  
+@ 
+The following commands can show the embedded pathways with genes and miRNAs as nodes.
+
+<<DirectInteGraph, fig=TRUE, include=FALSE, prefix=FALSE>>=
+
+# visualize the reconstructed direct pathway
+plotGraph(DirectInteGraphList[[1]],layout=layout.random)
+@
+
+Figure \ref{DirectInteGraph} shows the reconstructed direct Glycolysis / Gluconeogenesis metabolic pathway.
+
+\begin{figure}[!htbp]
+\begin{center}
+\includegraphics[width=1.0\textwidth]{DirectInteGraph}
+\caption{The visualization of reconstructed direct Glycolysis / Gluconeogenesis metabolic pathway.}\label{DirectInteGraph}
+\end{center}
+\end{figure}
+@
+
+\subsection{Embed miRNAs to undirect KEGG metabolic pathway graphs}\label{UnDirectInteGeneSection}
+
+The function \Rfunction{getInteGraphList} can integrate miRNAs into undirect KEGG metabolic pathway graphs with genes as nodes. With integrated graph list, we can offer the additional interested miRNAs and/or genes sets to identify the condition-specific pathways mediated by miRNAs.
+
+<<>>=
+# get undirect metabolic pathway graphs
+UndirectGraphList <- GetK2riData("MetabolicGEGEUEMGraph")
+# get reconstructed undirect pathway graph list
+UndirectInteGraphList <- getInteGraphList(UndirectGraphList, relations) 
+@ 
+
+The following commands can show the reconstructed pathway graph with genes and miRNAs as nodes. 
+
+<<UnDirectInteGraph, fig=TRUE, include=FALSE, prefix=FALSE>>=
+# visualize the reconstructed undirect pathway
+plotGraph(UndirectInteGraphList[[1]],layout=layout.random)
+@
+
+Figure \ref{UnDirectInteGraph} shows the reconstructed undirect Glycolysis / Gluconeogenesis metabolic pathway.
+
+\begin{figure}[!htbp]
+\begin{center}
+\includegraphics[width=1.0\textwidth]{UnDirectInteGraph}
+\caption{The visualization of reconstructed undirect Glycolysis / Gluconeogenesis metabolic pathway.}\label{UnDirectInteGraph}
+\end{center}
+\end{figure}
+@
+
+\section{Locate KEGG metabolic subpathways}\label{LocateSection}
+
+We can use function \Rfunction{getLocSubGraph} to locate metabolic subpathways by topologically analyzing the "lenient distance" of miRNAs and/or genes based on reconstructed pathways.
+
+\subsection{Based on reconstructed direct KEGG metabolic pathways}\label{LocateDirectGeneSection}
+
+The function \Rfunction{getLocSubGraph} can locate metabolic subpathways based on reconstructed direct KEGG metabolic pathways.
+
+
+<<>>=
+# get user-interested miRNAs and genes
+moleculeList <- c(getBackground(type="gene")[1:1000],
+               getBackground(type="miRNA")[1:2000])
+
+# get located direct subpathways
+DirectSubGraphList <- getLocSubGraph(moleculeList,DirectInteGraphList,
+                      type="gene_miRNA",n=1,s=10)
+@ 
+
+The following commands can show the located subpathway graph with genes and miRNAs as nodes. 
+
+<<DirectSubGraph, fig=TRUE, include=FALSE, prefix=FALSE>>=
+
+# visualize the located direct pathway
+plotGraph(DirectSubGraphList[[1]],layout=layout.random)
+@
+
+Figure \ref{DirectSubGraph} shows the located direct purine metabolic subpathway.
+
+\begin{figure}[!htbp]
+\begin{center}
+\includegraphics[width=1.0\textwidth]{DirectSubGraph}
+\caption{The visualization of located direct purine metabolic subpathway.}\label{DirectSubGraph}
+\end{center}
+\end{figure}
+@
+
+
+\subsection{Based on reconstructed undirect KEGG metabolic pathways}\label{LocateUnDirectGeneSection}
+
+The function \Rfunction{getLocSubGraph} can locate subpathways based on reconstructed undirect pathways.
+
+<<>>=
+# get located undirect subpathways
+UnDirectSubGraphList <- getLocSubGraph(moleculeList,UndirectInteGraphList,
+                      type="gene_miRNA",n=1,s=10)
+@ 
+
+The following commands can show the located subpathway graph with genes and miRNAs as nodes. 
+
+<<UnDirectSubGraph, fig=TRUE, include=FALSE, prefix=FALSE>>=
+
+# visualize the located undirect pathway
+plotGraph(UnDirectSubGraphList[[6]],layout=layout.random)
+@
+
+Figure \ref{UnDirectSubGraph} shows the located undirect purine metabolic subpathway.
+
+\begin{figure}[!htbp]
+\begin{center}
+\includegraphics[width=1.0\textwidth]{UnDirectSubGraph}
+\caption{The visualization of located undirect purine metabolic subpathway.}\label{UnDirectSubGraph}
+\end{center}
+\end{figure}
+@
+
+\section{Identify the significantly enriched subpathways}\label{IdentifySection}
+
+We can use function \Rfunction{identifyGraph} to identify the significantly enriched subpathways based on located direct/undirect metabolic subpathways.
+
+\subsection{Based on located direct KEGG metabolic subpathways}\label{IdentifyDirectSection}
+
+The function \Rfunction{identifyGraph} can identify the significantly enriched subpathways based on located direct metabolic subpathways.
+
+
+<<>>=
+# identify significant direct subpathways
+ann <- identifyGraph(moleculeList,DirectSubGraphList,type="gene_miRNA")
+result <- printGraph(ann,detail=TRUE)
+
+# view the result
+head(result[,c(1:2,5:6)])
+@
+\subsection{Based on located undirect KEGG metabolic subpathways}\label{IdentifyUnDirectSection}
+
+The function \Rfunction{getLocSubGraph} can identify the significantly enriched subpathways based on located undirect metabolic subpathways.
+
+<<>>=
+# identify significant undirect subpathways
+ann <- identifyGraph(moleculeList,UnDirectSubGraphList,type="gene_miRNA")
+result <- printGraph(ann,detail=TRUE)
+
+# view the result
+head(result[,c(1:2,5:6)])
+
+# save the result
+write.table(head(result),"result.txt",sep="\t",col.names=TRUE,row.names=FALSE)
+@
+\section{Get the current environment variables}\label{GetEnvirSection}
+We can use function \Rfunction{GetK2riData} to obtain variable datas in current environment.
+
+<<>>=
+# get verified miRNA-target interactions 
+expMir2Tar <- GetK2riData(K2riData="expMir2Tar")
+
+# get the background of miRNAs 
+BGMiRNA <- GetK2riData(K2riData="BGMiRNA")
+
+# get the background of genes 
+BGGene <- GetK2riData(K2riData="BGGene")
+
+@
+
+\section{Update the organism-specific environment variables}\label{UpdateEnvirSection}
+We can use function \Rfunction{updateOrgEnvir} to update the organism-specific environment variables.
+
+<<>>=
+# update the cel-specific environment variables 
+ updateOrgEnvir("cel")
+
+# show the current environment variables
+ ls(k2ri)
+
+# show the background of miRNAs
+ k2ri$BGMiRNA[1:3]
+ 
+@
+
+\newpage
+\section{Session Info}
+The script runs within the following session:
+<<sessionInfo, echo=FALSE, results=verbatim>>=
+sessionInfo()
+@
+
+\begin{thebibliography}{}
+
+\bibitem[Antonov {\it et~al}., 2008]{Antonov2008} Antonov, A.V., et al. (2008) Kegg Spider: Interpretation of Genomics Data in the Context of the Global Gene Metabolic Network. Genome Biol, 9, R179.
+
+\bibitem[Csardi and Nepusz, 2006]{Csardi2006} Csardi, G. and Nepusz, T. (2006) The igraph software package for complex network research. InterJournal, Complex Systems, 1695.
+
+\bibitem[Draghici {\it et~al}., 2007]{Draghici2007} Draghici, S., et al. (2007) A Systems Biology Approach for Pathway Level Analysis. Genome Res, 17, 1537-1545.
+
+\bibitem[Guimera and Nunes Amaral, 2005]{Guimera2005} Guimera, R. and Nunes Amaral, L.A. (2005) Functional Cartography of Complex Metabolic Networks. Nature, 433, 895-900.
+
+\bibitem[Huber {\it et~al}., 2007]{Huber2007}  Huber, W., et al. (2007) Graphs in Molecular Biology. BMC Bioinformatics, 8 Suppl 6, S8.
+
+\bibitem[Hung {\it et~al}., 2010]{Hung2010} Hung, J.H., et al. (2010) Identification of Functional Modules That Correlate with Phenotypic Difference: The Influence of Network Topology. Genome Biol, 11, R23.
+
+\bibitem[Kanehisa {\it et~al}., 2006]{Kanehisa2006} Kanehisa, M., et al. (2006) From Genomics to Chemical Genomics: New Developments in Kegg. Nucleic Acids Res, 34, D354-357.
+
+\bibitem[Koyuturk {\it et~al}., 2004]{Koyuturk2004} Koyuturk, M., et al. (2004) An Efficient Algorithm for Detecting Frequent Subgraphs in Biological Networks. Bioinformatics, 20 Suppl 1, i200-207.
+
+\bibitem[Li {\it et~al}., 2009]{Li2009} Li, C., et al. (2009) Subpathwayminer: A Software Package for Flexible Identification of Pathways. Nucleic Acids Res, 37, e131.
+
+\bibitem[Li {\it et~al}., 2013]{Li2013} Li, C., et al. (2013) Subpathway-GM: identification of metabolic subpathways via joint power of interesting genes and metabolites and their topologies within pathways. Nucleic acids research, 41, e101.
+
+\bibitem[Smart {\it et~al}., 2008]{Smart2008} Smart, A.G., et al. (2008) Cascading Failure and Robustness in Metabolic Networks. Proc Natl Acad Sci U S A, 105, 13223-13228.
+
+\bibitem[Strimmer, 2008]{Strimmer2008} Strimmer, K. (2008) fdrtool: a versatile R package for estimating local and tail area-based false discovery rates. Bioinformatics, 24, 1461-1462.
+
+\bibitem[Vergoulis {\it et~al}., 2012]{Vergoulis2012} Vergoulis, T., et al. (2012) TarBase 6.0: capturing the exponential growth of miRNA targets with experimental support. Nucleic acids research, 40, D222-229.
+
+\bibitem[Xiao {\it et~al}., 2009]{Xiao2009} Xiao, F., et al. (2009) miRecords: an integrated resource for microRNA-target interactions. Nucleic acids research, 37, D105-110.
+
+\bibitem[Hsu {\it et~al}., 2011]{Hsu2011} Hsu, S.D., et al. (2011) miRTarBase: a database curates experimentally validated microRNA-target interactions. Nucleic acids research, 39, D163-169.
+
+\bibitem[Jiang {\it et~al}., 2009]{Jiang2009} Jiang, Q., et al. (2009) miR2Disease: a manually curated database for microRNA deregulation in human disease. Nucleic acids research, 37, D98-104.
+
+\end{thebibliography}
+\end{document}
